@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">SEAL bluetooth toothpaste app</string>
+
+    <string name="title">Bluetooth toothpaste</string>
+    <string name="dataTitle">Brushing Records</string>
+    <string name="today_string">You\'ve brushed once today!</string>
+    <string name="action_settings">Settings</string>
+    <string name="step1">Step 1: connect to your bluetooth scale wth this button!</string>
+    <string name="bluetoothConnectButton">Connect</string>
+    <string name="title_activity_data_display">DataDisplayActivity</string>
+
+    <string name="hello_world">Hello world!</string>
+</resources>
