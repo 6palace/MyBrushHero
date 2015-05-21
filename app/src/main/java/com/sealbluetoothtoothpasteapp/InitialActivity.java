@@ -1,5 +1,7 @@
 package com.sealbluetoothtoothpasteapp;
 
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.content.Intent;
 import android.support.annotation.NonNull;
@@ -30,11 +32,15 @@ import java.util.Scanner;
 
 
 //TODO finish some preliminary layouts for Thursday, hook up bluetooth input system, begin implementing some features
-public class InitialActivity extends AppCompatActivity {
+public class InitialActivity extends AppCompatActivity{
 
     private static final String TAG = "InitialActivity";
     public static final String LOGDATA = "com.sealbluetoothtoothpasteapp.LOGDATA";
     public static final String LOGDATACONTENT = "dataInStrings";
+
+    BluetoothAdapter bluetoothAdapter;
+    BluetoothDevice bluetoothDevice;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -128,5 +134,18 @@ public class InitialActivity extends AppCompatActivity {
         Intent moveActivity = new Intent(this, DataDisplayActivity.class);
         moveActivity.putExtra(LOGDATA, sentBundle);
         startActivity(moveActivity);
+    }
+
+    //TODO: determine if changing min api to 18 is necessary
+    public void onLeScan(BluetoothDevice device, final int rssi, final byte[] scanRecord) {
+//        bluetoothAdapter.stopLeScan(this);
+        bluetoothDevice = device;
+
+        InitialActivity.this.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Log.d(TAG,BluetoothHelper.getDeviceInfoText(bluetoothDevice, rssi, scanRecord));
+            }
+        });
     }
 }

@@ -34,6 +34,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:inputType="number"
                 android:hint="input test weight here" />
             <Button
                 android:layout_width="wrap_content"
