@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.sealbluetoothtoothpasteapp" >
 
-
+    <permission android:name="com.sealbluetoothtoothpasteapp" />
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
 
@@ -29,6 +29,8 @@
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="com.sealbluetoothtoothpasteapp.InitialActivity" />
         </activity>
+        <service android:name=".RFduinoService"/>
+
     </application>
 
 </manifest>

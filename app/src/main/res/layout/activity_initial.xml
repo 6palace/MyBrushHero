@@ -69,6 +69,11 @@
             android:text="Display Weights"
             android:onClick="displayWeights"/>
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/debug_bluetooth_name"
+            />
         </RelativeLayout>
 
 </LinearLayout>
