@@ -43,7 +43,7 @@ public class DataDisplayActivity extends ActionBarActivity {
 //                String formattedDate = DateFormat.getDateTimeInstance().format(date);
 //                Log.d(TAG, formattedDate + ": " + tokens[0]);
 
-            BrushData toAdd = new BrushData(date, Integer.parseInt(tokens[0]));
+            BrushData toAdd = new BrushData(date, Float.parseFloat(tokens[0]));
             records.add(toAdd);
         }
 

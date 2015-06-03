@@ -25,23 +25,23 @@
 
         </LinearLayout>
     
-   <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
-            <EditText
-                android:id="@+id/testInput"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:inputType="number"
-                android:hint="input test weight here" />
-            <Button
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="log"
-                android:onClick="logWeight" />
-    </LinearLayout>
+   <!--<LinearLayout-->
+        <!--android:layout_width="match_parent"-->
+        <!--android:layout_height="wrap_content"-->
+        <!--android:orientation="horizontal">-->
+            <!--<EditText-->
+                <!--android:id="@+id/testInput"-->
+                <!--android:layout_width="0dp"-->
+                <!--android:layout_height="wrap_content"-->
+                <!--android:layout_weight="1"-->
+                <!--android:inputType="number"-->
+                <!--android:hint="input test weight here" />-->
+            <!--<Button-->
+                <!--android:layout_width="wrap_content"-->
+                <!--android:layout_height="wrap_content"-->
+                <!--android:text="log"-->
+                <!--android:onClick="logWeight" />-->
+    <!--</LinearLayout>-->
 
     <RelativeLayout
         android:padding="14dp"
@@ -52,7 +52,8 @@
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
                 android:layout_centerInParent="true"
-                android:text="Brush!"
+                android:text="@string/before_squeeze"
+                android:onClick="logWeight"
                 android:drawableRight="@drawable/ic_toothbrush"/>
 
     </RelativeLayout>

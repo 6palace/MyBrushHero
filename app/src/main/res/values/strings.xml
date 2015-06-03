@@ -9,5 +9,8 @@
     <string name="bluetoothConnectButton">Connect</string>
     <string name="title_activity_data_display">DataDisplayActivity</string>
 
+    <string name="before_squeeze">Place toothpaste on scale, then press this Button!</string>
+    <string name="after_squeeze">Now, use your toothpaste, put back on the scale, and press again!</string>
+
     <string name="hello_world">Hello world!</string>
 </resources>

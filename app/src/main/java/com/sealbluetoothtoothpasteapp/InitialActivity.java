@@ -1,5 +1,6 @@
 package com.sealbluetoothtoothpasteapp;
 
+import android.app.FragmentManager;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
@@ -16,12 +17,14 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.CharBuffer;
 import java.nio.DoubleBuffer;
 import java.nio.FloatBuffer;
@@ -31,8 +34,10 @@ import java.nio.ShortBuffer;
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Scanner;
 import java.util.UUID;
 
@@ -44,9 +49,22 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
     public static final String LOGDATA = "com.sealbluetoothtoothpasteapp.LOGDATA";
     public static final String LOGDATACONTENT = "dataInStrings";
 
+    private static final int BUFFER_CAPACITY = 4;
+
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothDevice bluetoothDevice;
     private RFduinoService rfduinoService;
+
+    private FragmentManager fragmentManager;
+
+
+    private boolean boundToDevice;
+
+    private Float beforeBrushWeight;
+
+    private boolean brushing;
+
+    private DataBuffer dataBuff;
 
 
     @Override
@@ -54,6 +72,9 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_initial);
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+
+        fragmentManager = getFragmentManager();
+        brushing = false;
 
     }
 
@@ -70,7 +91,6 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
 
         bluetoothAdapter.stopLeScan(this);
 
-        unregisterReceiver(rfduinoReceiver);
 
     }
 
@@ -105,9 +125,9 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
 
     //binds the rfduino to the rfduinoservice? I'm not even sure what to do right now
     public void bluetoothBind(){
-        Log.d(TAG, "pairing...");
-        Intent rfduinoIntent = new Intent(InitialActivity.this, RFduinoService.class);
-        bindService(rfduinoIntent, rfduinoServiceConnection, BIND_AUTO_CREATE);
+        Log.d(TAG,"scanning...");
+        bluetoothAdapter.startLeScan(new UUID[]{BluetoothHelper.sixteenBitUuid(0x2220)},
+                InitialActivity.this);
 
     }
 
@@ -144,17 +164,73 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
             }
         }
     };
+
     //Takes byte array and processes
     //TODO: turn array into useful data, then integrate with writeData
     private void addData(byte[] data){
-        String asHex = HexAsciiHelper.bytesToHex(data);
-        String asAscii = HexAsciiHelper.bytesToAsciiMaybe(data);
+//        String asBytes = "[";
+//        for(int i = data.length - 1; i > 0; i--){
+//            asBytes = asBytes.concat(Integer.toString(data[i]) + " ");
+//        }
+//        asBytes += "]";
+        //turn little-endian 4 byte into float, apparently
+        float asFloat = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getFloat();
 
-        Log.d(TAG,"received RFduino data as hex: " + asHex);
-        if(asAscii != null){
-            Log.d(TAG, "received RFduino data as Ascii: " + asAscii);
+        if(dataBuff == null) {
+            dataBuff = new DataBuffer(BUFFER_CAPACITY);
+        }
+        dataBuff.put(asFloat);
+        Log.d(TAG, dataBuff.toString());
+
+
+//        Log.d(TAG,"received RFduino data as float: " + asFloat);
+    }
+
+    //Rolling queue with a last option, could have used dequeue, forgot.
+    private class DataBuffer{
+        private float[] data;
+        private int getIndex;
+        private int putIndex;
+        private int capacity;
+
+        public DataBuffer(int capacity){
+            data = new float[capacity];
+            getIndex = 0;
+            putIndex = 0;
+            this.capacity = capacity;
+        }
+
+        public void put(float putIn){
+            data[putIndex] = putIn;
+            putIndex = (putIndex + 1) % capacity;
+
+            if(putIndex == getIndex){
+                getIndex = (getIndex + 1) % capacity;
+            }
+        }
+
+        public Float get(){
+            if(getIndex == putIndex){
+                return null;
+            } else{
+                float result = data[getIndex];
+                getIndex = (getIndex + 1) % capacity;
+                return result;
+            }
+        }
+
+        @Override
+        public String toString(){
+            String result = "start:";
+//            for(int i = getIndex; i != (getIndex - 1) % capacity; i = (i + 1) % capacity){
+            for(int i = 0; i < data.length; i++){
+                result += data[i] + ",\t";
+            }
+            result += ".";
+            return result;
         }
     }
+
 
     //Scans for bluetooth devices, sets bluetoothDevice to the matching rfduino device.
     public void blueToothScan(){
@@ -170,20 +246,39 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
             Log.d(TAG, "bluetooth already enabled");
         }
 
-        bluetoothAdapter.startLeScan(new UUID[] { BluetoothHelper.sixteenBitUuid(0x2220) },
-                InitialActivity.this);
+
 
     }
 
     //Acquire a toothpaste weight measurement somehow and save it into user data
     public void logWeight(View view){
-        File output = new File(this.getFilesDir(), "output");
-        EditText input = (EditText) findViewById(R.id.testInput);
+        //Debug code using the debug dialog
+//        File output = new File(this.getFilesDir(), "output");
+//        EditText input = (EditText) findViewById(R.id.testInput);
+        //        input.setText("");
+//        recordWeight(input.getText().toString());
 
-        recordWeight(input.getText().toString());
 
-        input.setText("");
+        Button target = (Button) view;
+
+        if(!brushing) {
+            beforeBrushWeight = dataBuff.get();
+            Log.d(TAG, "try before: " + Float.toString(beforeBrushWeight));
+            brushing = true;
+            target.setText(R.string.after_squeeze);
+        } else{
+            brushing = false;
+            float afterBrushWeight = dataBuff.get();
+            Log.d(TAG, "try after: " + Float.toString(afterBrushWeight) + ". total used: " + (beforeBrushWeight - afterBrushWeight));
+            target.setText(R.string.before_squeeze);
+            recordWeight(Float.toString(beforeBrushWeight - afterBrushWeight));
+
+            brushSuccessDialog confirmDia = new brushSuccessDialog();
+            confirmDia.show(fragmentManager, "dialog");
+        }
+
     }
+
 
     private void recordWeight(String weight){
         File output = new File(this.getFilesDir(), "output");
@@ -236,6 +331,7 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
         bluetoothAdapter.stopLeScan(this);
         bluetoothDevice = device;
 
+
         InitialActivity.this.runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -243,10 +339,36 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
                 Log.d(TAG,"Found device!");
                 Log.d(TAG,text);
                 TextView debugspace = (TextView) findViewById(R.id.debug_bluetooth_name);
-                debugspace.setText(text);
+                debugspace.setText("rfduino found!");
             }
         });
 
 
+        Log.d(TAG, "pairing...");
+        Intent rfduinoIntent = new Intent(InitialActivity.this, RFduinoService.class);
+
+        boundToDevice = bindService(rfduinoIntent, rfduinoServiceConnection, BIND_AUTO_CREATE);
+
+
+    }
+
+    @Override
+    public void onResume(){
+        super.onResume();
+
+        registerReceiver(rfduinoReceiver, RFduinoService.getIntentFilter());
+    }
+
+    @Override
+    public void onDestroy(){
+        super.onDestroy();
+
+        if(boundToDevice){
+            boundToDevice = false;
+            unbindService(rfduinoServiceConnection);
+        }
+
+
+        unregisterReceiver(rfduinoReceiver);
     }
 }

@@ -29,6 +29,23 @@ public class HexAsciiHelper {
         return hex.toString();
     }
 
+    public static int bytesToInt(byte[] data){ return bytesToInt(data, 0, data.length); }
+
+    public static int bytesToInt(byte[] data, int offset, int length) {
+        if (length <= 0){
+            return 0;
+        }
+
+        int result = 0;
+        for(int i = 0; i < length; i++){
+            result += data[i];
+        }
+
+        return result;
+
+
+    }
+
     public static String bytesToAsciiMaybe(byte[] data) {
         return bytesToAsciiMaybe(data, 0, data.length);
     }

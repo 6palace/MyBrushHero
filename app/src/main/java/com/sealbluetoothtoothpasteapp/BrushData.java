@@ -7,9 +7,9 @@ import java.util.Date;
  */
 public class BrushData{
     public Date date;
-    public int brushAmount;
+    public float brushAmount;
 
-    public BrushData(Date date, int amount){
+    public BrushData(Date date, float amount){
         this.date = date;
         brushAmount = amount;
     }
