@@ -20,6 +20,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -43,6 +44,11 @@ import java.util.UUID;
 
 
 //TODO finish some preliminary layouts for Thursday, hook up bluetooth input system, begin implementing some features
+//TODO bug: disconnects with the scale when displaying weights. fix: smooth lifecycle additions
+//TODO bug: sometimes recorded data is not put into displayweights, due to data extraction in onCreate. Fix: redo DataDisplayActivity to extract data directly from data file
+//TODO transfer connecting with scale into a 3 step process where step 1 connects with scale, step 2 records pre-brushing weight
+//  step 3 records post-brushing weight and records.
+//
 public class InitialActivity extends AppCompatActivity implements BluetoothAdapter.LeScanCallback{
 
     private static final String TAG = "InitialActivity";
@@ -81,6 +87,12 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
     @Override
     protected void onStart(){
         super.onStart();
+
+
+        if(dataBuff == null) {
+            dataBuff = new DataBuffer(BUFFER_CAPACITY);
+        }
+
         registerReceiver(rfduinoReceiver, RFduinoService.getIntentFilter());
 
     }
@@ -89,7 +101,6 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
     protected void onStop(){
         super.onStop();
 
-        bluetoothAdapter.stopLeScan(this);
 
 
     }
@@ -124,6 +135,7 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
     }
 
     //binds the rfduino to the rfduinoservice? I'm not even sure what to do right now
+    //this seems to be the beginning method
     public void bluetoothBind(){
         Log.d(TAG,"scanning...");
         bluetoothAdapter.startLeScan(new UUID[]{BluetoothHelper.sixteenBitUuid(0x2220)},
@@ -160,7 +172,6 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
                 Log.d(TAG,"rfduino is disconnected");
             } else if (RFduinoService.ACTION_DATA_AVAILABLE.equals(action)) {
                 addData(intent.getByteArrayExtra(RFduinoService.EXTRA_DATA));
-                //TODO: process the data.
             }
         }
     };
@@ -213,8 +224,8 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
             if(getIndex == putIndex){
                 return null;
             } else{
-                float result = data[getIndex];
                 getIndex = (getIndex + 1) % capacity;
+                float result = data[getIndex];
                 return result;
             }
         }
@@ -263,9 +274,13 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
 
         if(!brushing) {
             beforeBrushWeight = dataBuff.get();
-            Log.d(TAG, "try before: " + Float.toString(beforeBrushWeight));
-            brushing = true;
-            target.setText(R.string.after_squeeze);
+            if(beforeBrushWeight != null){
+                Log.d(TAG, "try before: " + Float.toString(beforeBrushWeight));
+                brushing = true;
+                target.setText(R.string.after_squeeze);
+            } else{
+                Log.d(TAG, "null bush weight.");
+            }
         } else{
             brushing = false;
             float afterBrushWeight = dataBuff.get();
@@ -279,10 +294,11 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
 
     }
 
-
+    //Take a weight difference and store it as string into a file.
     private void recordWeight(String weight){
         File output = new File(this.getFilesDir(), "output");
         long time = System.currentTimeMillis();
+        Log.d(TAG,"Recorded time: " + DateFormat.getDateTimeInstance().format(time));
         byte[] timeBuffer = ByteBuffer.allocate(8).putLong(time).array();
 
         try {
@@ -292,41 +308,25 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
             outputStream.write(timeBuffer);
             outputStream.write('\n');
             outputStream.close();
+            Log.d(TAG,"recording successful, file = " + output.getName());
         } catch(Exception e){
             e.printStackTrace();
         }
     }
 
+    //Start the DataDisplayActivity
+    //TODO shift data transfer away form intent information
     public void displayWeights(View view){
-        File weights = new File(this.getFilesDir(), "output");
 
-        ArrayList<String> sentDataStrings = new ArrayList<String>();
-        try {
-            Scanner input = new Scanner(weights);
-            while(input.hasNextLine()){
-                String line = input.nextLine().trim();
-                String[] tokens = line.split(":");
-                ByteBuffer dateBytes = ByteBuffer.wrap(tokens[1].getBytes());
-                Date date = new Date(dateBytes.getLong());
-//                String formattedDate = DateFormat.getDateTimeInstance().format(date);
-//                Log.d(TAG, formattedDate + ": " + tokens[0]);
-
-                sentDataStrings.add(line);
-            }
-        } catch(Exception e){
-            Log.e(TAG, "file not found");
-            e.printStackTrace();
-        }
-
-        Bundle sentBundle = new Bundle();
-        sentBundle.putStringArrayList(LOGDATACONTENT, sentDataStrings);
+//      Bundle sentBundle = new Bundle();
+//      sentBundle.putStringArrayList(LOGDATACONTENT, sentDataStrings);
 
         Intent moveActivity = new Intent(this, DataDisplayActivity.class);
-        moveActivity.putExtra(LOGDATA, sentBundle);
+        moveActivity.putExtra(LOGDATA, "output");
         startActivity(moveActivity);
     }
 
-    //TODO: determine if changing min api to 18 is necessary
+    //LeScan callback
     public void onLeScan(BluetoothDevice device, final int rssi, final byte[] scanRecord) {
         bluetoothAdapter.stopLeScan(this);
         bluetoothDevice = device;
@@ -338,8 +338,8 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
                 String text = BluetoothHelper.getDeviceInfoText(bluetoothDevice, rssi, scanRecord);
                 Log.d(TAG,"Found device!");
                 Log.d(TAG,text);
-                TextView debugspace = (TextView) findViewById(R.id.debug_bluetooth_name);
-                debugspace.setText("rfduino found!");
+                TextView statusSpace = (TextView) findViewById(R.id.scale_connection_status);
+                statusSpace.setText("You are now connected and ready to measure!");
             }
         });
 
@@ -353,22 +353,35 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
     }
 
     @Override
-    public void onResume(){
+    protected void onResume(){
         super.onResume();
 
-        registerReceiver(rfduinoReceiver, RFduinoService.getIntentFilter());
     }
 
     @Override
-    public void onDestroy(){
+    protected void onRestart(){
+        super.onRestart();
+        Log.d(TAG,"restarting");
+        registerReceiver(rfduinoReceiver, RFduinoService.getIntentFilter());
+
+        if(boundToDevice){
+            TextView statusView = (TextView) findViewById(R.id.scale_connection_status);
+            statusView.setText("You are now connected and ready to measure!");
+        }
+    }
+
+    @Override
+    protected void onDestroy(){
         super.onDestroy();
 
         if(boundToDevice){
             boundToDevice = false;
+            Log.d(TAG,"unbinding");
             unbindService(rfduinoServiceConnection);
         }
 
 
+        bluetoothAdapter.stopLeScan(this);
         unregisterReceiver(rfduinoReceiver);
     }
 }

@@ -3,7 +3,7 @@
 
     <string name="title">Bluetooth toothpaste</string>
     <string name="dataTitle">Brushing Records</string>
-    <string name="today_string">You\'ve brushed once today!</string>
+    <string name="today_string">Tap the signal button to connect with your scale!</string>
     <string name="action_settings">Settings</string>
     <string name="step1">Step 1: connect to your bluetooth scale wth this button!</string>
     <string name="bluetoothConnectButton">Connect</string>

@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -14,38 +15,57 @@ import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import java.io.File;
 import java.nio.ByteBuffer;
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Scanner;
 
 
 public class DataDisplayActivity extends ActionBarActivity {
 
     private List<BrushData> records;
+    private String dataName;
+
+    public static final String TAG = "DataDisplayActivity";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_data_display);
         Intent intent = getIntent();
-        Bundle loggedData = intent.getBundleExtra(InitialActivity.LOGDATA);
-        ArrayList<String> dataArray = loggedData.getStringArrayList(InitialActivity.LOGDATACONTENT);
+        dataName = intent.getStringExtra(InitialActivity.LOGDATA);
 
+    }
+
+    @Override
+    protected void onStart(){
+        super.onStart();
         records = new ArrayList<BrushData>();
 
-        for(int i = 0; i < dataArray.size(); i++){
-            String line = dataArray.get(i);
-            String[] tokens = line.split(":");
-            ByteBuffer dateBytes = ByteBuffer.wrap(tokens[1].getBytes());
-            Date date = new Date(dateBytes.getLong());
-//                String formattedDate = DateFormat.getDateTimeInstance().format(date);
-//                Log.d(TAG, formattedDate + ": " + tokens[0]);
+        File weights = new File(this.getFilesDir(), dataName);
 
-            BrushData toAdd = new BrushData(date, Float.parseFloat(tokens[0]));
-            records.add(toAdd);
+        try {
+            Scanner input = new Scanner(weights);
+            while(input.hasNextLine()){
+                String line = input.nextLine();
+                Log.d(TAG, line);
+                String[] tokens = line.split(":");
+                ByteBuffer dateBytes = ByteBuffer.wrap(tokens[1].getBytes());
+                Date date = new Date(dateBytes.getLong());
+                String formattedDate = DateFormat.getDateTimeInstance().format(date);
+                Log.d(TAG, formattedDate + ": " + tokens[0]);
+
+                BrushData toAdd = new BrushData(date,Float.parseFloat(tokens[0]));
+                records.add(toAdd);
+            }
+        } catch(Exception e){
+            Log.e(TAG, "file not found");
+            e.printStackTrace();
         }
+
 
         ListView contents = (ListView) findViewById(R.id.data_list);
         ArrayListAdapter adapter = new ArrayListAdapter(this, R.layout.row_layout, records);
@@ -53,6 +73,12 @@ public class DataDisplayActivity extends ActionBarActivity {
         contents.setAdapter(adapter);
     }
 
+    @Override
+    protected void onDestroy(){
+        super.onDestroy();
+
+        Log.d(TAG,"exiting view");
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -100,8 +126,10 @@ public class DataDisplayActivity extends ActionBarActivity {
             TextView dateView = (TextView) rowView.findViewById(R.id.row_layout_date);
             TextView weightView = (TextView) rowView.findViewById(R.id.row_layout_weight);
 
-            dateView.setText(DateFormat.getDateTimeInstance().format(data.get(position).date));
-            weightView.setText(data.get(position).brushAmount + " oz");
+            DateFormat df = DateFormat.getDateTimeInstance();
+
+            dateView.setText(df.format(data.get(position).date));
+            weightView.setText(data.get(position).brushAmount + " g");
 
 
             return rowView;

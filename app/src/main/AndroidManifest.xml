@@ -12,8 +12,9 @@
         android:label="@string/app_name"
         android:theme="@style/AppTheme" >
         <activity
-            android:name=".InitialActivity"
+            android:name="com.sealbluetoothtoothpasteapp.InitialActivity"
             android:label="@string/app_name"
+            android:launchMode="singleTop"
             android:theme="@style/Theme.AppCompat.Light" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -22,9 +23,9 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".DataDisplayActivity"
+            android:name="com.sealbluetoothtoothpasteapp.DataDisplayActivity"
             android:label="@string/title_activity_data_display"
-            android:parentActivityName=".InitialActivity" >
+            android:parentActivityName="com.sealbluetoothtoothpasteapp.InitialActivity" >
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="com.sealbluetoothtoothpasteapp.InitialActivity" />
