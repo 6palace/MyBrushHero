@@ -43,7 +43,6 @@ import java.util.Scanner;
 import java.util.UUID;
 
 
-//TODO finish some preliminary layouts for Thursday, hook up bluetooth input system, begin implementing some features
 //TODO bug: disconnects with the scale when displaying weights. fix: smooth lifecycle additions
 //TODO bug: sometimes recorded data is not put into displayweights, due to data extraction in onCreate. Fix: redo DataDisplayActivity to extract data directly from data file
 //TODO transfer connecting with scale into a 3 step process where step 1 connects with scale, step 2 records pre-brushing weight
@@ -66,7 +65,7 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
 
     private boolean boundToDevice;
 
-    private Float beforeBrushWeight;
+    private Double beforeBrushWeight;
 
     private boolean brushing;
 
@@ -88,19 +87,16 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
     protected void onStart(){
         super.onStart();
 
-
         if(dataBuff == null) {
             dataBuff = new DataBuffer(BUFFER_CAPACITY);
         }
 
         registerReceiver(rfduinoReceiver, RFduinoService.getIntentFilter());
-
     }
 
     @Override
     protected void onStop(){
         super.onStop();
-
 
 
     }
@@ -140,11 +136,11 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
         Log.d(TAG,"scanning...");
         bluetoothAdapter.startLeScan(new UUID[]{BluetoothHelper.sixteenBitUuid(0x2220)},
                 InitialActivity.this);
-
     }
 
     //Private ServiceConnection that monitors the rfduino connection service
     private final ServiceConnection rfduinoServiceConnection = new ServiceConnection() {
+
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             rfduinoService = ((RFduinoService.LocalBinder) service).getService();
@@ -154,6 +150,7 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
                 }
             }
         }
+
         @Override
         public void onServiceDisconnected(ComponentName name) {
             rfduinoService = null;
@@ -161,7 +158,7 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
         }
     };
 
-    //Recieves broadcasts from the rfduinoservice for stuff
+    //Recieves broadcasts from the rfduinoservice intent and processes the data
     private final BroadcastReceiver rfduinoReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -185,12 +182,12 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
 //        }
 //        asBytes += "]";
         //turn little-endian 4 byte into float, apparently
-        float asFloat = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getFloat();
+        double asDouble = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getDouble();
 
         if(dataBuff == null) {
             dataBuff = new DataBuffer(BUFFER_CAPACITY);
         }
-        dataBuff.put(asFloat);
+        dataBuff.put(asDouble);
         Log.d(TAG, dataBuff.toString());
 
 
@@ -198,45 +195,44 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
     }
 
     //Rolling queue with a last option, could have used dequeue, forgot.
+    //currently, databuff only returns most recent measurement. In future, auto-measure may come into play.
     private class DataBuffer{
-        private float[] data;
-        private int getIndex;
+//        private double[] data;
+//        private int getIndex;
+        private double data;
         private int putIndex;
         private int capacity;
 
         public DataBuffer(int capacity){
-            data = new float[capacity];
-            getIndex = 0;
+            data = 0.0;
+//            getIndex = 0;
             putIndex = 0;
             this.capacity = capacity;
         }
 
-        public void put(float putIn){
-            data[putIndex] = putIn;
+        public void put(double putIn){
+            data = putIn;
             putIndex = (putIndex + 1) % capacity;
 
-            if(putIndex == getIndex){
-                getIndex = (getIndex + 1) % capacity;
-            }
+//            if(putIndex == getIndex){
+//                getIndex = (getIndex + 1) % capacity;
+//            }
         }
 
-        public Float get(){
-            if(getIndex == putIndex){
-                return null;
-            } else{
-                getIndex = (getIndex + 1) % capacity;
-                float result = data[getIndex];
-                return result;
-            }
+        public double get(){
+//            getIndex = (getIndex + 1) % capacity;
+//            float result =
+            return data;
         }
 
         @Override
         public String toString(){
             String result = "start:";
 //            for(int i = getIndex; i != (getIndex - 1) % capacity; i = (i + 1) % capacity){
-            for(int i = 0; i < data.length; i++){
-                result += data[i] + ",\t";
-            }
+//            for(int i = 0; i < data.length; i++){
+//                result += data[i] + ",\t";
+//            }
+            result += data + "grams";
             result += ".";
             return result;
         }
@@ -257,8 +253,6 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
             Log.d(TAG, "bluetooth already enabled");
         }
 
-
-
     }
 
     //Acquire a toothpaste weight measurement somehow and save it into user data
@@ -275,18 +269,18 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
         if(!brushing) {
             beforeBrushWeight = dataBuff.get();
             if(beforeBrushWeight != null){
-                Log.d(TAG, "try before: " + Float.toString(beforeBrushWeight));
+                Log.d(TAG, "try before: " + beforeBrushWeight.toString());
                 brushing = true;
                 target.setText(R.string.after_squeeze);
             } else{
-                Log.d(TAG, "null bush weight.");
+                Log.d(TAG, "null brush weight.");
             }
         } else{
             brushing = false;
-            float afterBrushWeight = dataBuff.get();
-            Log.d(TAG, "try after: " + Float.toString(afterBrushWeight) + ". total used: " + (beforeBrushWeight - afterBrushWeight));
+            Double afterBrushWeight = dataBuff.get();
+            Log.d(TAG, "try after: " + afterBrushWeight.toString() + ". total used: " + (beforeBrushWeight - afterBrushWeight));
             target.setText(R.string.before_squeeze);
-            recordWeight(Float.toString(beforeBrushWeight - afterBrushWeight));
+            recordWeight(Double.toString(beforeBrushWeight - afterBrushWeight));
 
             brushSuccessDialog confirmDia = new brushSuccessDialog();
             confirmDia.show(fragmentManager, "dialog");
@@ -315,7 +309,6 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
     }
 
     //Start the DataDisplayActivity
-    //TODO shift data transfer away form intent information
     public void displayWeights(View view){
 
 //      Bundle sentBundle = new Bundle();

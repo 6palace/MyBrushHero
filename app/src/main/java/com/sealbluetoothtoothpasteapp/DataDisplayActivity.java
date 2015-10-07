@@ -43,34 +43,16 @@ public class DataDisplayActivity extends ActionBarActivity {
     @Override
     protected void onStart(){
         super.onStart();
-        records = new ArrayList<BrushData>();
 
-        File weights = new File(this.getFilesDir(), dataName);
+        populateList();
 
-        try {
-            Scanner input = new Scanner(weights);
-            while(input.hasNextLine()){
-                String line = input.nextLine();
-                Log.d(TAG, line);
-                String[] tokens = line.split(":");
-                ByteBuffer dateBytes = ByteBuffer.wrap(tokens[1].getBytes());
-                Date date = new Date(dateBytes.getLong());
-                String formattedDate = DateFormat.getDateTimeInstance().format(date);
-                Log.d(TAG, formattedDate + ": " + tokens[0]);
+    }
 
-                BrushData toAdd = new BrushData(date,Float.parseFloat(tokens[0]));
-                records.add(toAdd);
-            }
-        } catch(Exception e){
-            Log.e(TAG, "file not found");
-            e.printStackTrace();
-        }
+    //TODO prevent crash when accessing displayweights a second time
+    protected void onResume(){
+        super.onResume();
 
-
-        ListView contents = (ListView) findViewById(R.id.data_list);
-        ArrayListAdapter adapter = new ArrayListAdapter(this, R.layout.row_layout, records);
-
-        contents.setAdapter(adapter);
+        populateList();
     }
 
     @Override
@@ -100,6 +82,37 @@ public class DataDisplayActivity extends ActionBarActivity {
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    private void populateList(){
+        records = new ArrayList<BrushData>();
+
+        File weights = new File(this.getFilesDir(), dataName);
+
+        try {
+            Scanner input = new Scanner(weights);
+            while(input.hasNextLine()){
+                String line = input.nextLine();
+                Log.d(TAG, line);
+                String[] tokens = line.split(":");
+                ByteBuffer dateBytes = ByteBuffer.wrap(tokens[1].getBytes());
+                Date date = new Date(dateBytes.getLong());
+                String formattedDate = DateFormat.getDateTimeInstance().format(date);
+                Log.d(TAG, formattedDate + ": " + tokens[0]);
+
+                BrushData toAdd = new BrushData(date,Float.parseFloat(tokens[0]));
+                records.add(toAdd);
+            }
+        } catch(Exception e){
+            Log.e(TAG, "file not found");
+            e.printStackTrace();
+        }
+
+
+        ListView contents = (ListView) findViewById(R.id.data_list);
+        ArrayListAdapter adapter = new ArrayListAdapter(this, R.layout.row_layout, records);
+
+        contents.setAdapter(adapter);
     }
 
     //Wrapper class for data so that Adapter can be easily extended
