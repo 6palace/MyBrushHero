@@ -23,7 +23,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.CharBuffer;
@@ -198,45 +200,47 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
     }
 
     //Rolling queue with a last option, could have used dequeue, forgot.
+    //TODO eventually use a true buffer for 1-press measuring
     private class DataBuffer{
-        private float[] data;
-        private int getIndex;
-        private int putIndex;
-        private int capacity;
+        private float data;
+//        private int getIndex;
+//        private int putIndex;
+//        private int capacity;
 
         public DataBuffer(int capacity){
-            data = new float[capacity];
-            getIndex = 0;
-            putIndex = 0;
-            this.capacity = capacity;
+            data = (float) 0.0;
+//            getIndex = 0;
+//            putIndex = 0;
         }
 
         public void put(float putIn){
-            data[putIndex] = putIn;
-            putIndex = (putIndex + 1) % capacity;
-
-            if(putIndex == getIndex){
-                getIndex = (getIndex + 1) % capacity;
-            }
+            data = putIn;
+//            putIndex = (putIndex + 1) % capacity;
+//
+//            if(putIndex == getIndex){
+//                getIndex = (getIndex + 1) % capacity;
+//            }
         }
 
         public Float get(){
-            if(getIndex == putIndex){
-                return null;
-            } else{
-                getIndex = (getIndex + 1) % capacity;
-                float result = data[getIndex];
-                return result;
-            }
+//            if(getIndex == putIndex){
+//                return null;
+//            } else{
+//                getIndex = (getIndex + 1) % capacity;
+//                float result = data[getIndex];
+//                return result;
+//            }
+            return data;
         }
 
         @Override
         public String toString(){
             String result = "start:";
 //            for(int i = getIndex; i != (getIndex - 1) % capacity; i = (i + 1) % capacity){
-            for(int i = 0; i < data.length; i++){
-                result += data[i] + ",\t";
-            }
+//            for(int i = 0; i < data.length; i++){
+//                result += data[i] + ",\t";
+//            }
+            result += data + "grams";
             result += ".";
             return result;
         }
@@ -262,7 +266,7 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
     }
 
     //Acquire a toothpaste weight measurement somehow and save it into user data
-    public void logWeight(View view){
+    public void logWeight(View view) throws IOException{
         //Debug code using the debug dialog
 //        File output = new File(this.getFilesDir(), "output");
 //        EditText input = (EditText) findViewById(R.id.testInput);
@@ -295,7 +299,7 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
     }
 
     //Take a weight difference and store it as string into a file.
-    private void recordWeight(String weight){
+    private void recordWeight(String weight) throws IOException{
         File output = new File(this.getFilesDir(), "output");
         long time = System.currentTimeMillis();
         Log.d(TAG,"Recorded time: " + DateFormat.getDateTimeInstance().format(time));
@@ -309,7 +313,7 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
             outputStream.write('\n');
             outputStream.close();
             Log.d(TAG,"recording successful, file = " + output.getName());
-        } catch(Exception e){
+        } catch(FileNotFoundException e){
             e.printStackTrace();
         }
     }

@@ -16,6 +16,7 @@ import android.widget.ListView;
 import android.widget.TextView;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.nio.ByteBuffer;
 import java.text.DateFormat;
 import java.util.ArrayList;
@@ -53,15 +54,20 @@ public class DataDisplayActivity extends ActionBarActivity {
                 String line = input.nextLine();
                 Log.d(TAG, line);
                 String[] tokens = line.split(":");
-                ByteBuffer dateBytes = ByteBuffer.wrap(tokens[1].getBytes());
-                Date date = new Date(dateBytes.getLong());
-                String formattedDate = DateFormat.getDateTimeInstance().format(date);
-                Log.d(TAG, formattedDate + ": " + tokens[0]);
+                Log.d(TAG,"tokens length:" + tokens.length);
+                if(tokens.length >= 2) {
+                    ByteBuffer dateBytes = ByteBuffer.wrap(tokens[1].getBytes());
+                    Date date = new Date(dateBytes.getLong());
+                    String formattedDate = DateFormat.getDateTimeInstance().format(date);
+                    Log.d(TAG, formattedDate + ": " + tokens[0]);
 
-                BrushData toAdd = new BrushData(date,Float.parseFloat(tokens[0]));
-                records.add(toAdd);
+                    BrushData toAdd = new BrushData(date, Float.parseFloat(tokens[0]));
+                    records.add(toAdd);
+                } else{
+                    Log.e(TAG,"invalid entry found in data! skipping for next entry");
+                }
             }
-        } catch(Exception e){
+        } catch(FileNotFoundException e){
             Log.e(TAG, "file not found");
             e.printStackTrace();
         }
@@ -77,7 +83,7 @@ public class DataDisplayActivity extends ActionBarActivity {
     protected void onDestroy(){
         super.onDestroy();
 
-        Log.d(TAG,"exiting view");
+        Log.d(TAG, "exiting view");
     }
 
     @Override
