@@ -25,6 +25,7 @@ import android.widget.Toast;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -45,17 +46,16 @@ import java.util.Scanner;
 import java.util.UUID;
 
 
-//TODO finish some preliminary layouts for Thursday, hook up bluetooth input system, begin implementing some features
-//TODO bug: disconnects with the scale when displaying weights. fix: smooth lifecycle additions
-//TODO bug: sometimes recorded data is not put into displayweights, due to data extraction in onCreate. Fix: redo DataDisplayActivity to extract data directly from data file
-//TODO transfer connecting with scale into a 3 step process where step 1 connects with scale, step 2 records pre-brushing weight
-//  step 3 records post-brushing weight and records.
-//
+//TODO add in schedule filler, determine number of brushes each day
 public class InitialActivity extends AppCompatActivity implements BluetoothAdapter.LeScanCallback{
 
     private static final String TAG = "InitialActivity";
     public static final String LOGDATA = "com.sealbluetoothtoothpasteapp.LOGDATA";
+    public static final String LOGDATANAME = "output";
     public static final String LOGDATACONTENT = "dataInStrings";
+
+    public static final String PROFILEDATA = "com.sealbluetoothtoothpasteapp.LOGDATA";
+    public static final String PROFILEDATANAME = "profile";
 
     private static final int BUFFER_CAPACITY = 4;
 
@@ -72,6 +72,8 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
 
     private boolean brushing;
 
+    private BrushProfile curProfile;
+
     private DataBuffer dataBuff;
 
 
@@ -82,6 +84,7 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
         fragmentManager = getFragmentManager();
+        curProfile = new BrushProfile();
         brushing = false;
 
     }
@@ -89,22 +92,32 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
     @Override
     protected void onStart(){
         super.onStart();
+        File profileFile = new File(this.getFilesDir(), PROFILEDATANAME);
 
+        Scanner profileInput;
+        try{
+            if(profileFile.createNewFile()){
+                Log.d(TAG, "profile created");
+            } else{
+                Log.d(TAG, "profile exists already");
+            }
+            profileInput = new Scanner(profileFile);
+            curProfile.initProfile(profileInput);
+        } catch(IOException e){
+            e.printStackTrace();
+            curProfile.initProfile();
+        }
 
         if(dataBuff == null) {
             dataBuff = new DataBuffer(BUFFER_CAPACITY);
         }
 
         registerReceiver(rfduinoReceiver, RFduinoService.getIntentFilter());
-
     }
 
     @Override
     protected void onStop(){
         super.onStop();
-
-
-
     }
 
     @Override
@@ -247,6 +260,65 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
     }
 
 
+    private class BrushProfile{
+
+        public static final String TAG = "BrushProfile";
+        public float requireWeight;
+        public boolean hasRequireWeight;
+//        public int dailyBrush;
+
+        public int fields;
+        //more variables for multiple profiles
+
+        public BrushProfile(){
+            fields = 1;
+        }
+
+        public void initProfile(Scanner input){
+            hasRequireWeight = input.hasNextFloat();
+            if(hasRequireWeight) {
+                setWeight(input.nextFloat());
+            } else{
+                setWeight((float) -1.0);
+            }
+        }
+
+        public void initProfile(){
+            hasRequireWeight = false;
+            setWeight((float) -1.0);
+        }
+
+        public void setWeight(float setTo){
+            requireWeight = setTo;
+            if(requireWeight > 0.0){
+                EditText statusweight = (EditText) findViewById(R.id.requireWeightInput);
+                statusweight.setHint(String.format("Currently set to %.1f grams", requireWeight));
+            }
+        }
+    }
+
+    //sets requireWeight of
+    public void setRequireWeight(View v) throws IOException{
+        Log.d(TAG, "setting require weight");
+
+        EditText weightEditText = (EditText) findViewById(R.id.requireWeightInput);
+        try{
+            float weightAsFloat = Float.parseFloat(weightEditText.getText().toString());
+            Log.d(TAG, "set weight as float: " + weightAsFloat);
+            curProfile.setWeight(weightAsFloat);
+            weightEditText.setHint(String.format("Currently set to %.1f grams", weightAsFloat));
+
+            File profileFile = new File(this.getFilesDir(), PROFILEDATANAME);
+            FileWriter outputWriter = new FileWriter(profileFile, false);
+            outputWriter.write(weightEditText.getText().toString());
+            outputWriter.close();
+            Log.d(TAG, "writing requireWeight Success");
+        } catch(NumberFormatException e){
+            Log.e(TAG,"no float entered!");
+        }
+
+    }
+
     //Scans for bluetooth devices, sets bluetoothDevice to the matching rfduino device.
     public void blueToothScan(){
         //Enable bluetooth if not enabled already
@@ -260,9 +332,6 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
         } else{
             Log.d(TAG, "bluetooth already enabled");
         }
-
-
-
     }
 
     //Acquire a toothpaste weight measurement somehow and save it into user data
@@ -290,9 +359,15 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
             float afterBrushWeight = dataBuff.get();
             Log.d(TAG, "try after: " + Float.toString(afterBrushWeight) + ". total used: " + (beforeBrushWeight - afterBrushWeight));
             target.setText(R.string.before_squeeze);
-            recordWeight(Float.toString(beforeBrushWeight - afterBrushWeight));
+            String amountUsed = Float.toString(beforeBrushWeight - afterBrushWeight);
+            recordWeight(amountUsed);
 
-            brushSuccessDialog confirmDia = new brushSuccessDialog();
+            Bundle dialogBundle = new Bundle();
+            dialogBundle.putString(BrushSuccessDialog.DISPLAYWEIGHT, amountUsed);
+            dialogBundle.putString(BrushSuccessDialog.LIMITWEIGHT, Float.toString(curProfile.requireWeight));
+
+            BrushSuccessDialog confirmDia = new BrushSuccessDialog();
+            confirmDia.setArguments(dialogBundle);
             confirmDia.show(fragmentManager, "dialog");
         }
 
@@ -300,7 +375,7 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
 
     //Take a weight difference and store it as string into a file.
     private void recordWeight(String weight) throws IOException{
-        File output = new File(this.getFilesDir(), "output");
+        File output = new File(this.getFilesDir(), LOGDATANAME);
         long time = System.currentTimeMillis();
         Log.d(TAG,"Recorded time: " + DateFormat.getDateTimeInstance().format(time));
         byte[] timeBuffer = ByteBuffer.allocate(8).putLong(time).array();
@@ -329,6 +404,9 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
         moveActivity.putExtra(LOGDATA, "output");
         startActivity(moveActivity);
     }
+
+
+
 
     //LeScan callback
     public void onLeScan(BluetoothDevice device, final int rssi, final byte[] scanRecord) {

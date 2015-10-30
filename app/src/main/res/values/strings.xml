@@ -13,4 +13,6 @@
     <string name="after_squeeze">Now, use your toothpaste, put back on the scale, and press again!</string>
 
     <string name="hello_world">Hello world!</string>
+    <string name="require_weight_hint">Input a toothpaste baseline here</string>
+    <string name="require_weight_button">Set</string>
 </resources>
