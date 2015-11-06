@@ -55,7 +55,6 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
     public static final String LOGDATACONTENT = "dataInStrings";
 
     public static final String PROFILEDATA = "com.sealbluetoothtoothpasteapp.LOGDATA";
-    public static final String PROFILEDATANAME = "profile";
 
     private static final int BUFFER_CAPACITY = 4;
 
@@ -84,7 +83,7 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
         fragmentManager = getFragmentManager();
-        curProfile = new BrushProfile();
+        curProfile = new BrushProfile(1, this.getFilesDir(), (EditText) findViewById(R.id.requireWeightInput));
         brushing = false;
 
     }
@@ -92,21 +91,6 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
     @Override
     protected void onStart(){
         super.onStart();
-        File profileFile = new File(this.getFilesDir(), PROFILEDATANAME);
-
-        Scanner profileInput;
-        try{
-            if(profileFile.createNewFile()){
-                Log.d(TAG, "profile created");
-            } else{
-                Log.d(TAG, "profile exists already");
-            }
-            profileInput = new Scanner(profileFile);
-            curProfile.initProfile(profileInput);
-        } catch(IOException e){
-            e.printStackTrace();
-            curProfile.initProfile();
-        }
 
         if(dataBuff == null) {
             dataBuff = new DataBuffer(BUFFER_CAPACITY);
@@ -118,6 +102,12 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
     @Override
     protected void onStop(){
         super.onStop();
+        Log.d(TAG, "InitialActivity stopped");
+        try {
+            curProfile.writeProfile(this.getFilesDir());
+        } catch(IOException e){
+            Log.e(TAG, "IOException writing to profile");
+        }
     }
 
     @Override
@@ -206,7 +196,6 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
             dataBuff = new DataBuffer(BUFFER_CAPACITY);
         }
         dataBuff.put(asFloat);
-        Log.d(TAG, dataBuff.toString());
 
 
 //        Log.d(TAG,"received RFduino data as float: " + asFloat);
@@ -260,62 +249,10 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
     }
 
 
-    private class BrushProfile{
-
-        public static final String TAG = "BrushProfile";
-        public float requireWeight;
-        public boolean hasRequireWeight;
-//        public int dailyBrush;
-
-        public int fields;
-        //more variables for multiple profiles
-
-        public BrushProfile(){
-            fields = 1;
-        }
-
-        public void initProfile(Scanner input){
-            hasRequireWeight = input.hasNextFloat();
-            if(hasRequireWeight) {
-                setWeight(input.nextFloat());
-            } else{
-                setWeight((float) -1.0);
-            }
-        }
-
-        public void initProfile(){
-            hasRequireWeight = false;
-            setWeight((float) -1.0);
-        }
-
-        public void setWeight(float setTo){
-            requireWeight = setTo;
-            if(requireWeight > 0.0){
-                EditText statusweight = (EditText) findViewById(R.id.requireWeightInput);
-                statusweight.setHint(String.format("Currently set to %.1f grams", requireWeight));
-            }
-        }
-    }
-
     //sets requireWeight of
     public void setRequireWeight(View v) throws IOException{
         Log.d(TAG, "setting require weight");
-
-        EditText weightEditText = (EditText) findViewById(R.id.requireWeightInput);
-        try{
-            float weightAsFloat = Float.parseFloat(weightEditText.getText().toString());
-            Log.d(TAG, "set weight as float: " + weightAsFloat);
-            curProfile.setWeight(weightAsFloat);
-            weightEditText.setHint(String.format("Currently set to %.1f grams", weightAsFloat));
-
-            File profileFile = new File(this.getFilesDir(), PROFILEDATANAME);
-            FileWriter outputWriter = new FileWriter(profileFile, false);
-            outputWriter.write(weightEditText.getText().toString());
-            outputWriter.close();
-            Log.d(TAG, "writing requireWeight Success");
-        } catch(NumberFormatException e){
-            Log.e(TAG,"no float entered!");
-        }
+        curProfile.setWeight();
 
     }
 
@@ -359,7 +296,10 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
             float afterBrushWeight = dataBuff.get();
             Log.d(TAG, "try after: " + Float.toString(afterBrushWeight) + ". total used: " + (beforeBrushWeight - afterBrushWeight));
             target.setText(R.string.before_squeeze);
-            String amountUsed = Float.toString(beforeBrushWeight - afterBrushWeight);
+            float floatAmountUsed = beforeBrushWeight - afterBrushWeight;
+            String amountUsed = Float.toString(floatAmountUsed);
+
+            curProfile.addBrush(floatAmountUsed, new Date());
             recordWeight(amountUsed);
 
             Bundle dialogBundle = new Bundle();
@@ -373,7 +313,7 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
 
     }
 
-    //Take a weight difference and store it as string into a file.
+    //Take a weight difference and store it as string into a profile file.
     private void recordWeight(String weight) throws IOException{
         File output = new File(this.getFilesDir(), LOGDATANAME);
         long time = System.currentTimeMillis();
@@ -402,6 +342,7 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
 
         Intent moveActivity = new Intent(this, DataDisplayActivity.class);
         moveActivity.putExtra(LOGDATA, "output");
+
         startActivity(moveActivity);
     }
 
