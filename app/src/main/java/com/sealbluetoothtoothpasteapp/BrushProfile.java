@@ -2,6 +2,7 @@ package com.sealbluetoothtoothpasteapp;
 
 import android.content.Context;
 import android.content.ContextWrapper;
+import android.provider.CalendarContract;
 import android.util.Log;
 import android.widget.EditText;
 
@@ -12,8 +13,10 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.Scanner;
+import java.util.TimeZone;
 
 /**
  * Created by Henry on 11/5/2015.
@@ -49,6 +52,7 @@ public class BrushProfile{
         } else{
             setWeight((float) -1.0);
         }
+        input.nextLine();
     }
 
     //TODO create blank profile
@@ -81,6 +85,9 @@ public class BrushProfile{
 
     //Assumes file is just plain brush history
     public void getBrushHistory(Scanner input){
+        //refresh and reinterpret
+        brushRecord.clear();
+
         while(input.hasNextLine()){
             String line = input.nextLine();
             Log.d(TAG, line);
@@ -147,5 +154,24 @@ public class BrushProfile{
         }
         outputStream.close();
         Log.d(TAG, "writing requireWeight Success");
+    }
+
+    public int checkTodayBrushes(){
+        int res = 0;
+        Calendar nowDate = Calendar.getInstance(TimeZone.getDefault());
+        int nowDay = nowDate.get(Calendar.DAY_OF_YEAR);
+        int nowYear = nowDate.get(Calendar.YEAR);
+        Log.d(TAG, "day of year: " + nowDay + " year: " + nowYear);
+
+        Calendar thenDate = Calendar.getInstance(TimeZone.getDefault());
+        for(BrushData data : brushRecord){
+            thenDate.setTime(data.date);
+            if(nowYear == thenDate.get(Calendar.YEAR) && nowDay == thenDate.get(Calendar.DAY_OF_YEAR)){
+                Log.d(TAG, "found a today brush!");
+                res++;
+            }
+        }
+        Log.d(TAG, "number of brushes today: " + res);
+        return res;
     }
 }

@@ -11,6 +11,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -27,8 +28,7 @@ import java.util.Scanner;
 
 public class DataDisplayActivity extends ActionBarActivity {
 
-    private List<BrushData> records;
-    private String dataName;
+    private BrushProfile curProfile;
 
     public static final String TAG = "DataDisplayActivity";
 
@@ -37,44 +37,17 @@ public class DataDisplayActivity extends ActionBarActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_data_display);
         Intent intent = getIntent();
-        dataName = intent.getStringExtra(InitialActivity.LOGDATA);
-
+        curProfile = new BrushProfile(intent.getIntExtra(BrushProfile.PROFILEDATANAME, 1), this.getFilesDir(), new EditText(this));
     }
 
     @Override
     protected void onStart(){
         super.onStart();
-        records = new ArrayList<BrushData>();
 
-        File weights = new File(this.getFilesDir(), dataName);
-
-        try {
-            Scanner input = new Scanner(weights);
-            while(input.hasNextLine()){
-                String line = input.nextLine();
-                Log.d(TAG, line);
-                String[] tokens = line.split(":");
-                Log.d(TAG,"tokens length:" + tokens.length);
-                if(tokens.length >= 2) {
-                    ByteBuffer dateBytes = ByteBuffer.wrap(tokens[1].getBytes());
-                    Date date = new Date(dateBytes.getLong());
-                    String formattedDate = DateFormat.getDateTimeInstance().format(date);
-                    Log.d(TAG, formattedDate + ": " + tokens[0]);
-
-                    BrushData toAdd = new BrushData(date, Float.parseFloat(tokens[0]));
-                    records.add(toAdd);
-                } else{
-                    Log.e(TAG,"invalid entry found in data! skipping for next entry");
-                }
-            }
-        } catch(FileNotFoundException e){
-            Log.e(TAG, "file not found");
-            e.printStackTrace();
-        }
-
+        curProfile.initFromFile(this.getFilesDir());
 
         ListView contents = (ListView) findViewById(R.id.data_list);
-        ArrayListAdapter adapter = new ArrayListAdapter(this, R.layout.row_layout, records);
+        ArrayListAdapter adapter = new ArrayListAdapter(this, R.layout.row_layout, curProfile.brushRecord);
 
         contents.setAdapter(adapter);
     }

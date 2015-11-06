@@ -54,7 +54,7 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
     public static final String LOGDATANAME = "output";
     public static final String LOGDATACONTENT = "dataInStrings";
 
-    public static final String PROFILEDATA = "com.sealbluetoothtoothpasteapp.LOGDATA";
+    public static final String PROFILEDATA = "com.sealbluetoothtoothpasteapp.PRFOILEDATA";
 
     private static final int BUFFER_CAPACITY = 4;
 
@@ -96,6 +96,7 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
             dataBuff = new DataBuffer(BUFFER_CAPACITY);
         }
 
+        int timesToday = curProfile.checkTodayBrushes();
         registerReceiver(rfduinoReceiver, RFduinoService.getIntentFilter());
     }
 
@@ -341,7 +342,7 @@ public class InitialActivity extends AppCompatActivity implements BluetoothAdapt
 //      sentBundle.putStringArrayList(LOGDATACONTENT, sentDataStrings);
 
         Intent moveActivity = new Intent(this, DataDisplayActivity.class);
-        moveActivity.putExtra(LOGDATA, "output");
+        moveActivity.putExtra(BrushProfile.PROFILEDATANAME, curProfile.profileId);
 
         startActivity(moveActivity);
     }
